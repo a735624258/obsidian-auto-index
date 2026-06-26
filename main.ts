@@ -87,36 +87,58 @@ export default class AutoIndexPlugin extends Plugin {
     }
 
     // 递归收集 md 文件，从笔记自身读取描述
-    collectEntries(folder: TFolder, result: FileEntry[]) {
+    collectEntries(folder: TFolder, result: FileEntry[], rootModule?: string) {
+        const modName = rootModule || folder.name;
         for (const child of (folder as any).children || []) {
             if (child instanceof TFile && child.extension === "md" && child.name !== INDEX_FILE) {
-                const desc = this.getDesc(child);
+                const desc = this.getDesc(child, modName);
                 result.push({ basename: child.basename, desc });
             } else if (child instanceof TFolder) {
-                this.collectEntries(child, result);
+                this.collectEntries(child, result, modName);
             }
         }
     }
 
-    // 生成说明列：tags → 首标题 → 去日期文件名
-    getDesc(file: TFile): string {
+    // 生成说明列：tags（过滤来源标签）→ 首标题 → 文件名关键词
+    getDesc(file: TFile, moduleFolder: string): string {
+        // 视频总结模块：只用文件名关键词
+        if (moduleFolder === "3、视频总结") {
+            return this.toKeywords(file.basename);
+        }
+
         const cache = this.app.metadataCache.getFileCache(file);
 
-        // 优先 frontmatter tags
+        // 优先 frontmatter tags，但过滤掉来源类标签
+        const noiseTags = new Set(["clippings", "bilibili", "douyin", "youtube", "抖音", "B站"]);
         const tags = cache?.frontmatter?.tags;
         if (tags) {
             const list = Array.isArray(tags) ? tags : [tags];
-            const clean = list.map((t: string) => String(t).replace(/^#/, ""));
+            const clean = list
+                .map((t: string) => String(t).replace(/^#/, ""))
+                .filter((t: string) => !noiseTags.has(t));
             if (clean.length > 0) return clean.join(" · ");
         }
 
-        // 其次第一个 heading
-        if (cache?.headings?.length) {
-            return cache.headings[0].heading;
+        // 其次第一个 heading（跳过太泛的），但文件名含多个 - 的优先用文件名
+        const hasHypens = file.basename.split("-").filter(p => p.length > 0).length >= 3;
+        if (!hasHypens && cache?.headings?.length) {
+            const h = cache.headings[0].heading;
+            const skipHeadings = new Set(["简介", "总结", "概述", "前言"]);
+            if (!skipHeadings.has(h) && !h.startsWith("AI总结")) {
+                return this.toKeywords(h);
+            }
         }
 
-        // 最后文件名去日期
-        return file.basename.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-/g, " ");
+        // 最后文件名
+        return this.toKeywords(file.basename);
+    }
+
+    toKeywords(s: string): string {
+        return s
+            .replace(/-\d{4}-\d{2}-\d{2}$/, "")
+            .split("-")
+            .filter(p => p.length > 0 && !/^\d+$/.test(p))
+            .join(" · ");
     }
 
     buildHead(old: string, moduleCount: number, todayStr: string): string {
@@ -138,7 +160,7 @@ export default class AutoIndexPlugin extends Plugin {
                 if (line.includes("![[")) break;
                 // 去掉 callout 前缀，跳过空行和纯 > 行
                 const t = line.replace(/^> /, "").trim();
-                if (t && t !== ">" && !t.startsWith(">")) oldDescLines.push(t);
+                if (t && t !== ">" && !t.startsWith(">") && !t.startsWith("最后更新")) oldDescLines.push(t);
             }
         }
         const descText = oldDescLines.length > 0
@@ -189,7 +211,7 @@ ${descText}
             body += "\n";
         }
 
-        body += `---\n\n> **统计**：共 ${modules.length} 个模块，${total} 条笔记`;
+        body += `\n---\n`;
         return { body, total };
     }
 

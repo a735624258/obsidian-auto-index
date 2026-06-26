@@ -101,31 +101,44 @@ var AutoIndexPlugin = class extends import_obsidian.Plugin {
     console.log(`Auto-Index: ${modules.length} \u6A21\u5757 \xB7 ${total} \u7BC7\u7B14\u8BB0`);
   }
   // 递归收集 md 文件，从笔记自身读取描述
-  collectEntries(folder, result) {
+  collectEntries(folder, result, rootModule) {
+    const modName = rootModule || folder.name;
     for (const child of folder.children || []) {
       if (child instanceof import_obsidian.TFile && child.extension === "md" && child.name !== INDEX_FILE) {
-        const desc = this.getDesc(child);
+        const desc = this.getDesc(child, modName);
         result.push({ basename: child.basename, desc });
       } else if (child instanceof import_obsidian.TFolder) {
-        this.collectEntries(child, result);
+        this.collectEntries(child, result, modName);
       }
     }
   }
-  // 生成说明列：tags → 首标题 → 去日期文件名
-  getDesc(file) {
+  // 生成说明列：tags（过滤来源标签）→ 首标题 → 文件名关键词
+  getDesc(file, moduleFolder) {
     var _a, _b;
+    if (moduleFolder === "3\u3001\u89C6\u9891\u603B\u7ED3") {
+      return this.toKeywords(file.basename);
+    }
     const cache = this.app.metadataCache.getFileCache(file);
+    const noiseTags = /* @__PURE__ */ new Set(["clippings", "bilibili", "douyin", "youtube", "\u6296\u97F3", "B\u7AD9"]);
     const tags = (_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.tags;
     if (tags) {
       const list = Array.isArray(tags) ? tags : [tags];
-      const clean = list.map((t) => String(t).replace(/^#/, ""));
+      const clean = list.map((t) => String(t).replace(/^#/, "")).filter((t) => !noiseTags.has(t));
       if (clean.length > 0)
         return clean.join(" \xB7 ");
     }
-    if ((_b = cache == null ? void 0 : cache.headings) == null ? void 0 : _b.length) {
-      return cache.headings[0].heading;
+    const hasHypens = file.basename.split("-").filter((p) => p.length > 0).length >= 3;
+    if (!hasHypens && ((_b = cache == null ? void 0 : cache.headings) == null ? void 0 : _b.length)) {
+      const h = cache.headings[0].heading;
+      const skipHeadings = /* @__PURE__ */ new Set(["\u7B80\u4ECB", "\u603B\u7ED3", "\u6982\u8FF0", "\u524D\u8A00"]);
+      if (!skipHeadings.has(h) && !h.startsWith("AI\u603B\u7ED3")) {
+        return this.toKeywords(h);
+      }
     }
-    return file.basename.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-/g, " ");
+    return this.toKeywords(file.basename);
+  }
+  toKeywords(s) {
+    return s.replace(/-\d{4}-\d{2}-\d{2}$/, "").split("-").filter((p) => p.length > 0 && !/^\d+$/.test(p)).join(" \xB7 ");
   }
   buildHead(old, moduleCount, todayStr) {
     const fm = old.match(/^---[\s\S]*?---/);
@@ -146,7 +159,7 @@ var AutoIndexPlugin = class extends import_obsidian.Plugin {
         if (line.includes("![["))
           break;
         const t = line.replace(/^> /, "").trim();
-        if (t && t !== ">" && !t.startsWith(">"))
+        if (t && t !== ">" && !t.startsWith(">") && !t.startsWith("\u6700\u540E\u66F4\u65B0"))
           oldDescLines.push(t);
       }
     }
@@ -193,9 +206,9 @@ ${descText}
       }
       body += "\n";
     }
-    body += `---
-
-> **\u7EDF\u8BA1**\uFF1A\u5171 ${modules.length} \u4E2A\u6A21\u5757\uFF0C${total} \u6761\u7B14\u8BB0`;
+    body += `
+---
+`;
     return { body, total };
   }
   // ---- 子分类 ----
