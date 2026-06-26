@@ -90,7 +90,10 @@ var AutoIndexPlugin = class extends import_obsidian.Plugin {
     }
     const listStart = oldContent.indexOf("## \u{1F4CB} \u5168\u91CF\u6E05\u5355");
     const oldTail = listStart >= 0 ? oldContent.slice(listStart) : "";
-    const head = this.buildHead(oldContent, modules.length);
+    const now = /* @__PURE__ */ new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const head = this.buildHead(oldContent, modules.length, todayStr);
     const { body, total } = this.buildBody(modules, oldTail);
     const newContent = head + "\n" + body;
     await this.app.vault.modify(indexFile, newContent);
@@ -124,7 +127,7 @@ var AutoIndexPlugin = class extends import_obsidian.Plugin {
     }
     return file.basename.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-/g, " ");
   }
-  buildHead(old, moduleCount) {
+  buildHead(old, moduleCount, todayStr) {
     const fm = old.match(/^---[\s\S]*?---/);
     const frontmatter = fm ? fm[0] : "---\ncssclasses:\n  - full-width-page\n---";
     const noteMatch = old.match(/> \*\*(\d+)\*\* 篇笔记/);
@@ -156,6 +159,8 @@ var AutoIndexPlugin = class extends import_obsidian.Plugin {
 > **${noteCount}** \u7BC7\u7B14\u8BB0 &emsp; **${moduleCount}** \u4E2A\u6A21\u5757 &emsp; **${skillCount}** skill &emsp; **${pluginCount}** \u63D2\u4EF6
 >
 ${descText}
+>
+> \u6700\u540E\u66F4\u65B0\uFF1A${todayStr}
 
 ![[\u4E00\u4E2A\u6708\u6210\u957F\u590D\u5229\u66F2\u7EBF.svg|681]]
 
@@ -188,11 +193,9 @@ ${descText}
       }
       body += "\n";
     }
-    const today = /* @__PURE__ */ new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     body += `---
 
-> **\u7EDF\u8BA1**\uFF1A\u5171 ${modules.length} \u4E2A\u6A21\u5757\uFF0C${total} \u6761\u7B14\u8BB0\uFF0C\u6700\u540E\u66F4\u65B0\uFF1A${todayStr}`;
+> **\u7EDF\u8BA1**\uFF1A\u5171 ${modules.length} \u4E2A\u6A21\u5757\uFF0C${total} \u6761\u7B14\u8BB0`;
     return { body, total };
   }
   // ---- 子分类 ----
