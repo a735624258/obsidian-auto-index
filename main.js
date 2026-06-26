@@ -188,9 +188,11 @@ ${descText}
       }
       body += "\n";
     }
+    const today = /* @__PURE__ */ new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     body += `---
 
-> **\u7EDF\u8BA1**\uFF1A\u5171 ${modules.length} \u4E2A\u6A21\u5757\uFF0C${total} \u6761\u7B14\u8BB0 &emsp; | &emsp; \u6700\u540E\u66F4\u65B0\uFF1A${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}`;
+> **\u7EDF\u8BA1**\uFF1A\u5171 ${modules.length} \u4E2A\u6A21\u5757\uFF0C${total} \u6761\u7B14\u8BB0\uFF0C\u6700\u540E\u66F4\u65B0\uFF1A${todayStr}`;
     return { body, total };
   }
   // ---- 子分类 ----
