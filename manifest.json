@@ -1,0 +1,9 @@
+{
+  "id": "auto-index",
+  "name": "Auto Index",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "新建笔记时自动更新知识库全量索引。文件创建后自动追加到对应模块表格，更新数据面板统计。",
+  "author": "WorkBuddy",
+  "isDesktopOnly": true
+}
